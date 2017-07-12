@@ -76,8 +76,37 @@ class SelectorBIC(ModelSelector):
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        # TODO implement model selection based on BIC scores
-        raise NotImplementedError
+        best_bic_score = float("inf")
+        best_model = self.base_model(self.n_constant)
+        for n in range(self.min_n_components, self.max_n_components + 1):
+            try:
+                # bic = - 2*log(likelihood) + p*log(N)
+                # N is number of data points
+                # p => number of parameters
+                # p = initial state occupation probabilities
+                #     + transition probabilities
+                #     + emission probabilities
+                # initial state occupation probabilities, can be obtained from n,
+                # as the probabilities add up to 1.0 => initial state occupation probabilities = n - 1
+                # transition probabilities  => n*(n - 1)
+                # emission probabilities => n * num_features * 2 = num_means + num_covar
+                # Hence, p = n - 1 + n*(n - 1) + 2* n * num_features
+                #         p = n*n + 2*n*num_features - 1
+
+                model = self.base_model(n)
+                log_likelihood = model.score(self.X, self.lengths)
+                num_features = len(self.X[0])
+                log_n = math.log(self.X.shape[0])
+
+                p = n*n + 2*n*num_features - 1
+                bic = -2 * log_likelihood + p * log_n
+                if bic < best_bic_score:
+                    best_bic_score = bic
+                    best_model = model
+            except:
+                continue
+
+        return best_model
 
 
 class SelectorDIC(ModelSelector):
@@ -92,8 +121,30 @@ class SelectorDIC(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+        best_dic_score = float("-inf")
+        best_model = self.base_model(self.n_constant)
+
+        log_likelihoods = []
+        for n in range(self.min_n_components, self.max_n_components + 1):
+            try:
+                model = self.base_model(n)
+                log_likelihood = model.score(self.X, self.lengths)
+                log_likelihoods.append(n, log_likelihood)
+                log_likelihood_sum = log_likelihood_sum + log_likelihood
+            except:
+                continue
+
+        m = self.X.shape[0]
+        for n, log_likelihood in log_likelihoods:
+            try:
+                dic_score = log_likelihood - 1 / (m - 1) * (log_likelihood_sum - log_likelihood)
+                if dic_score > best_dic_score:
+                    best_dic_score = dic_score
+                    best_model = self.base_model(n)
+            except:
+                continue
+
+        return best_model
 
 
 class SelectorCV(ModelSelector):
