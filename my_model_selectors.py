@@ -151,9 +151,35 @@ class SelectorCV(ModelSelector):
     ''' select best model based on average log Likelihood of cross-validation folds
 
     '''
-
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        # TODO implement model selection using CV
-        raise NotImplementedError
+        best_cv_score = float("-inf")
+        best_model = self.base_model(self.n_constant)
+        trained_model = None
+        kf = KFold()
+
+        for n in range(self.min_n_components, self.max_n_components + 1):
+
+                fold_scores = []
+                log_likelihoods = []
+
+                for train_indexes, test_indexes in kf.split():
+                    try:
+                        X_train, X_train_length = combine_sequences(train_indexes, self.sequences)
+                        X_test, X_test_length = combine_sequences(test_indexes, self.sequences)
+                        trained_model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
+                                                    random_state=self.random_state,
+                                                    verbose=False).fit(X_train, X_train_length)
+
+                        log_likelihood = trained_model.score(X_test, X_test_length)
+                        log_likelihoods.append(log_likelihood)
+                    except:
+                        continue
+
+                cv_score = np.mean(log_likelihoods)
+                if cv_score > best_cv_score and trained_model is not None:
+                    best_cv_score = cv_score
+                    best_model = trained_model
+
+        return best_model
