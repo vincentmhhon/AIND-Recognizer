@@ -160,11 +160,12 @@ class SelectorCV(ModelSelector):
         kf = KFold()
 
         for n in range(self.min_n_components, self.max_n_components + 1):
+                if len(self.sequences) < kf.n_splits:
+                    break
 
-                fold_scores = []
                 log_likelihoods = []
 
-                for train_indexes, test_indexes in kf.split():
+                for train_indexes, test_indexes in kf.split(self.sequences):
                     try:
                         X_train, X_train_length = combine_sequences(train_indexes, self.sequences)
                         X_test, X_test_length = combine_sequences(test_indexes, self.sequences)
